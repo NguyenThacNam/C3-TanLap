@@ -1,0 +1,6 @@
+{
+  "name": "NEURO-QUIZ",
+  "description": "A high-tech neural gesture training and assessment platform.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}
