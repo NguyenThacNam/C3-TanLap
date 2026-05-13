@@ -105,8 +105,13 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
       }
       ctx.restore();
       
-      // Only update selection if not in feedback, not submitting, and NOT in cooldown
-      if (!feedbackRef.current && !isSubmittingRef.current && !cooldownRef.current) {
+      // CRITICAL: Check if we are in cooldown or feedback
+      if (cooldownRef.current) {
+        setSelectedLabel(null);
+        return;
+      }
+
+      if (!feedbackRef.current && !isSubmittingRef.current) {
         setSelectedLabel(prev => {
           if (prev !== detectedLabel) {
             setHoldProgress(0);
@@ -114,9 +119,6 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
           }
           return detectedLabel;
         });
-      } else if (cooldownRef.current) {
-        // Force clear label during cooldown
-        setSelectedLabel(null);
       }
     });
 
@@ -190,18 +192,21 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
 
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
-      setIsCooldown(true); // Start cooldown
-      setCurrentIndex(i => i + 1);
+      setIsCooldown(true);
+      // Reset ALL states before moving to next index
       setSelectedLabel(null);
       setFeedback(null);
       setHoldProgress(0);
       setShowNextButton(false);
       isSubmittingRef.current = false;
       
-      // Clear cooldown after 1.5s to let user change hand position
+      // Small delay before changing index to ensure state clears
       setTimeout(() => {
-        setIsCooldown(false);
-      }, 1500);
+        setCurrentIndex(i => i + 1);
+        setTimeout(() => {
+           setIsCooldown(false);
+        }, 800);
+      }, 100);
     } else {
       try { audio.playComplete(); } catch(e) {}
       onComplete(score, userAnswers);
@@ -254,17 +259,25 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
         "grid grid-cols-1 gap-6 min-h-0 flex-1 mb-2",
         isFullScreen ? "lg:grid-cols-12" : "lg:grid-cols-2"
       )}>
-        <div className={cn(
-          "bg-white rounded-[2rem] p-8 flex flex-col border border-outline-variant/40 shadow-md relative overflow-hidden",
-          isFullScreen ? "lg:col-span-8" : "p-10"
-        )}>
+        {/* Question Panel - Added Key to force remount */}
+        <div 
+          key={`question-${currentIndex}`}
+          className={cn(
+            "bg-white rounded-[2rem] p-8 flex flex-col border border-outline-variant/40 shadow-md relative overflow-hidden",
+            isFullScreen ? "lg:col-span-8" : "p-10"
+          )}
+        >
           <div className="mb-6 relative z-10">
-            <h1 className={cn(
-              "font-black text-on-surface leading-tight tracking-tight font-display transition-all",
-              isFullScreen ? "text-2xl md:text-3xl" : "text-2xl"
-            )}>
+            <motion.h1 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={cn(
+                "font-black text-on-surface leading-tight tracking-tight font-display transition-all",
+                isFullScreen ? "text-2xl md:text-3xl" : "text-2xl"
+              )}
+            >
               {currentQuestion.question}
-            </h1>
+            </motion.h1>
           </div>
 
           <div className={cn(
@@ -273,7 +286,7 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
           )}>
             {currentQuestion.options.map((opt) => (
               <QuizOption 
-                key={opt.label}
+                key={`${currentIndex}-${opt.label}`}
                 label={opt.label} 
                 title={opt.text} 
                 active={selectedLabel === opt.label}
@@ -338,11 +351,6 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
                 <p className="text-[8px] text-primary font-black mb-0.5 uppercase">Vision System</p>
                 <p className="text-[10px] font-bold text-white font-display uppercase tracking-widest">Neural Link</p>
               </div>
-              {isCooldown && (
-                <div className="bg-primary text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg">
-                  Cooldown
-                </div>
-              )}
             </div>
 
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-4">
