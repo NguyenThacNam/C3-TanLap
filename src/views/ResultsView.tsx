@@ -9,7 +9,8 @@ import {
   ChevronUp, 
   Trophy, 
   Star,
-  Brain
+  Brain,
+  User
 } from 'lucide-react';
 import { cn } from '../lib/utils.ts';
 import { questions } from '../data/questions.ts';
@@ -28,6 +29,7 @@ export default function ResultsView({ results, onRestart }: ResultsViewProps) {
   const totalQuestions = questions.length;
   const correctCount = score / 100;
   const isHighScorer = correctCount >= 8;
+  const playerName = results?.playerName || 'Người chơi';
 
   useEffect(() => {
     if (isHighScorer) {
@@ -77,23 +79,29 @@ export default function ResultsView({ results, onRestart }: ResultsViewProps) {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full -mr-40 -mt-40 transition-transform duration-1000 group-hover:scale-110"></div>
         
         <div className="relative z-10 flex flex-col items-center text-center">
-          {isHighScorer ? (
-             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 border-2 border-primary/20">
-                <Trophy className="w-12 h-12 text-primary animate-bounce" />
-             </div>
-          ) : (
-             <div className="w-24 h-24 bg-on-surface-variant/5 rounded-full flex items-center justify-center mb-6">
-                <Brain className="w-12 h-12 text-on-surface-variant" />
-             </div>
-          )}
+          <div className="flex flex-col items-center mb-8">
+            {isHighScorer ? (
+               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-4 border-2 border-primary/20 shadow-xl shadow-primary/10">
+                  <Trophy className="w-12 h-12 text-primary animate-bounce" />
+               </div>
+            ) : (
+               <div className="w-24 h-24 bg-on-surface-variant/5 rounded-full flex items-center justify-center mb-4">
+                  <Brain className="w-12 h-12 text-on-surface-variant" />
+               </div>
+            )}
+            <div className="bg-surface-container px-6 py-2 rounded-full border border-outline-variant/50 flex items-center gap-3">
+               <User className="w-4 h-4 text-primary" />
+               <span className="text-sm font-black text-on-surface uppercase tracking-widest">{playerName}</span>
+            </div>
+          </div>
           
           <h1 className="text-5xl font-black text-on-surface mb-4 uppercase tracking-tighter font-display">
-            {isHighScorer ? "XUẤT SẮC! CHÚC MỪNG BẠN" : "KẾT QUẢ ĐÃ SẴN SÀNG"}
+            {isHighScorer ? "XUẤT SẮC! CHÚC MỪNG" : "KẾT QUẢ CỦA BẠN"}
           </h1>
           <p className="text-on-surface-variant mb-12 text-lg max-w-2xl leading-relaxed">
             {isHighScorer 
-              ? "Bạn đã chứng minh khả năng làm chủ kiến thức CSDL Quan hệ một cách tuyệt vời. Hệ thống đã ghi nhận điểm số ấn tượng của bạn."
-              : "Cảm ơn bạn đã hoàn thành phiên học. Hãy xem lại các câu trả lời bên dưới để củng cố thêm kiến thức về Cơ sở dữ liệu quan hệ."}
+              ? `Chúc mừng ${playerName}! Bạn đã chứng minh khả năng làm chủ kiến thức CSDL Quan hệ một cách tuyệt vời. Hệ thống đã ghi nhận điểm số ấn tượng của bạn.`
+              : `Cảm ơn ${playerName} đã hoàn thành phiên học. Hãy xem lại các câu trả lời bên dưới để củng cố thêm kiến thức về Cơ sở dữ liệu quan hệ.`}
           </p>
 
           <div className="flex items-center gap-16 mb-12">

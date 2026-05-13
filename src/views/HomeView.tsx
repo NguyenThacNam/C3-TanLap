@@ -1,11 +1,19 @@
 import { motion } from 'motion/react';
-import { Rocket, Zap, TrendingUp } from 'lucide-react';
+import { Rocket, User, ArrowRight } from 'lucide-react';
 
 interface HomeViewProps {
   onStart: () => void;
+  playerName: string;
+  setPlayerName: (name: string) => void;
 }
 
-export default function HomeView({ onStart }: HomeViewProps) {
+export default function HomeView({ onStart, playerName, setPlayerName }: HomeViewProps) {
+  const handleStart = () => {
+    if (playerName.trim()) {
+      onStart();
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[70vh] relative">
       <div className="absolute inset-0 z-0 pointer-events-none opacity-40 overflow-hidden">
@@ -32,17 +40,33 @@ export default function HomeView({ onStart }: HomeViewProps) {
             Tương tác sư phạm bằng cử chỉ tay. HAND-QUIZ biến việc học thành trải nghiệm kỹ thuật số xúc giác, nơi mỗi cử chỉ là một câu trả lời.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
-            <button 
-              onClick={onStart}
-              className="px-8 py-5 bg-primary text-white font-bold rounded-full flex items-center justify-center gap-3 hover:scale-105 transition-transform shadow-xl shadow-primary/20"
-            >
-              Bắt đầu luyện tập
-              <Rocket className="w-5 h-5" />
-            </button>
-            <button className="px-8 py-5 bg-white border border-outline-variant shadow-sm text-on-surface font-bold rounded-full hover:bg-surface-container transition-all">
-              THPT Tân Lập
-            </button>
+          <div className="flex flex-col gap-6 max-w-sm">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
+                <User className="w-5 h-5" />
+              </div>
+              <input 
+                type="text"
+                placeholder="Nhập họ tên của bạn..."
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="w-full pl-14 pr-6 py-5 bg-white border border-outline-variant rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-lg font-bold placeholder:font-medium placeholder:text-on-surface-variant/40"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 mt-2">
+              <button 
+                onClick={handleStart}
+                disabled={!playerName.trim()}
+                className="px-8 py-5 bg-primary text-white font-bold rounded-2xl flex items-center justify-center gap-3 hover:scale-105 transition-transform shadow-xl shadow-primary/20 disabled:opacity-50 disabled:grayscale disabled:hover:scale-100"
+              >
+                Bắt đầu ngay
+                <Rocket className="w-5 h-5" />
+              </button>
+              <button className="px-8 py-5 bg-white border border-outline-variant shadow-sm text-on-surface font-bold rounded-2xl hover:bg-surface-container transition-all">
+                THPT Tân Lập
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-12 mt-8 border-l-2 border-primary/20 pl-8">
@@ -75,7 +99,9 @@ export default function HomeView({ onStart }: HomeViewProps) {
               <div className="w-32 h-32 border border-primary/30 rounded-full"></div>
             </div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-lg border border-primary/30 shadow-lg">
-               <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Đã khóa: Tay_01</span>
+               <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                {playerName ? `Target: ${playerName}` : 'Đang chờ định danh...'}
+               </span>
             </div>
           </div>
         </motion.div>
