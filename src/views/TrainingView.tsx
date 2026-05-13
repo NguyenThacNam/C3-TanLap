@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Video, Fingerprint, XCircle, Activity, Maximize2, Minimize2, BrainCircuit, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Video, Fingerprint, XCircle, Activity, Maximize2, Minimize2, BrainCircuit, ArrowRight, RefreshCcw } from 'lucide-react';
 import { cn } from '../lib/utils.ts';
 import { questions } from '../data/questions.ts';
 import { audio } from '../lib/audio.ts';
@@ -18,6 +18,7 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showNextButton, setShowNextButton] = useState(false);
+  const [camStatus, setCamStatus] = useState<'loading' | 'active' | 'error'>('loading');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,14 +34,26 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
 
   const currentQuestion = questions[currentIndex];
 
-  useEffect(() => {
+  const initCamera = async () => {
+    setCamStatus('loading');
     const Hands = (window as any).Hands;
     const Camera = (window as any).Camera;
     const drawConnectors = (window as any).drawConnectors;
     const drawLandmarks = (window as any).drawLandmarks;
     const HAND_CONNECTIONS = (window as any).HAND_CONNECTIONS;
 
-    if (!Hands || !Camera) return;
+    if (!Hands || !Camera) {
+      setCamStatus('error');
+      return;
+    }
+
+    // Cleanup old instances
+    if (cameraRef.current) {
+      try { cameraRef.current.stop(); } catch(e) {}
+    }
+    if (handsRef.current) {
+      try { handsRef.current.close(); } catch(e) {}
+    }
 
     const hands = new Hands({
       locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -54,6 +67,7 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
     });
 
     hands.onResults((results: any) => {
+      setCamStatus('active');
       if (!canvasRef.current || !videoRef.current) return;
       
       const ctx = canvasRef.current.getContext('2d');
@@ -110,26 +124,34 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
     handsRef.current = hands;
 
     if (videoRef.current) {
-      const camera = new Camera(videoRef.current, {
-        onFrame: async () => {
-          if (videoRef.current && handsRef.current) {
-            await handsRef.current.send({ image: videoRef.current });
-          }
-        },
-        width: 1280,
-        height: 720
-      });
-      camera.start();
-      cameraRef.current = camera;
+      try {
+        const camera = new Camera(videoRef.current, {
+          onFrame: async () => {
+            if (videoRef.current && handsRef.current) {
+              await handsRef.current.send({ image: videoRef.current });
+            }
+          },
+          width: 1280,
+          height: 720
+        });
+        await camera.start();
+        cameraRef.current = camera;
+      } catch (e) {
+        console.error("Camera init error:", e);
+        setCamStatus('error');
+      }
     }
+  };
 
+  useEffect(() => {
+    initCamera();
     return () => {
       if (cameraRef.current) {
-        cameraRef.current.stop();
+        try { cameraRef.current.stop(); } catch(e) {}
         cameraRef.current = null;
       }
       if (handsRef.current) {
-        handsRef.current.close();
+        try { handsRef.current.close(); } catch(e) {}
         handsRef.current = null;
       }
     };
@@ -224,12 +246,21 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
                <span className="text-[10px] font-bold text-on-surface-variant uppercase">Điểm số</span>
                <span className="text-xl font-black text-primary font-display">{score}</span>
             </div>
-            <button 
-              onClick={() => setIsFullScreen(!isFullScreen)}
-              className="p-2 bg-white hover:bg-primary/5 rounded-xl border border-outline-variant transition-all shadow-sm"
-            >
-              {isFullScreen ? <Minimize2 className="w-5 h-5 text-on-surface" /> : <Maximize2 className="w-5 h-5 text-on-surface" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={initCamera}
+                className="p-2 bg-primary/10 hover:bg-primary/20 rounded-xl border border-primary/20 text-primary transition-all"
+                title="Thử lại Camera"
+              >
+                <RefreshCcw className={cn("w-5 h-5", camStatus === 'loading' && "animate-spin")} />
+              </button>
+              <button 
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="p-2 bg-white hover:bg-primary/5 rounded-xl border border-outline-variant transition-all shadow-sm"
+              >
+                {isFullScreen ? <Minimize2 className="w-5 h-5 text-on-surface" /> : <Maximize2 className="w-5 h-5 text-on-surface" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -312,6 +343,20 @@ export default function TrainingView({ onComplete }: TrainingViewProps) {
             height={720}
             className="w-full h-full object-cover opacity-80 flex-1"
           />
+
+          {camStatus !== 'active' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md z-30">
+              {camStatus === 'loading' ? (
+                <RefreshCcw className="w-12 h-12 text-primary animate-spin" />
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <XCircle className="w-12 h-12 text-red-500" />
+                  <button onClick={initCamera} className="bg-primary text-white px-6 py-2 rounded-lg font-bold">Thử lại Cam</button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="absolute inset-0 bg-black/10 scanline pointer-events-none"></div>
 
           <div className="absolute inset-0 flex flex-col justify-between p-6 z-10 pointer-events-none">

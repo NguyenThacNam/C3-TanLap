@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Hand, Waves, Move, Info, Video, CheckCircle2, Fingerprint, Activity, XCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { Hand, Waves, Move, Info, Video, CheckCircle2, Fingerprint, Activity, XCircle, Maximize2, Minimize2, RefreshCcw } from 'lucide-react';
 import { cn } from '../lib/utils.ts';
 
 interface CalibrationViewProps {
@@ -9,19 +9,32 @@ interface CalibrationViewProps {
 
 export default function CalibrationView({ onComplete }: CalibrationViewProps) {
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [camStatus, setCamStatus] = useState<'loading' | 'active' | 'error'>('loading');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
 
-  useEffect(() => {
+  const initCamera = async () => {
+    setCamStatus('loading');
     const Hands = (window as any).Hands;
     const Camera = (window as any).Camera;
     const drawConnectors = (window as any).drawConnectors;
     const drawLandmarks = (window as any).drawLandmarks;
     const HAND_CONNECTIONS = (window as any).HAND_CONNECTIONS;
 
-    if (!Hands || !Camera) return;
+    if (!Hands || !Camera) {
+      setCamStatus('error');
+      return;
+    }
+
+    // Cleanup old instances if any
+    if (cameraRef.current) {
+      try { cameraRef.current.stop(); } catch(e) {}
+    }
+    if (handsRef.current) {
+      try { handsRef.current.close(); } catch(e) {}
+    }
 
     const hands = new Hands({
       locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -35,6 +48,7 @@ export default function CalibrationView({ onComplete }: CalibrationViewProps) {
     });
 
     hands.onResults((results: any) => {
+      setCamStatus('active');
       if (!canvasRef.current || !videoRef.current) return;
       const ctx = canvasRef.current.getContext('2d');
       if (!ctx) return;
@@ -73,13 +87,17 @@ export default function CalibrationView({ onComplete }: CalibrationViewProps) {
           width: 1280,
           height: 720
         });
-        camera.start();
+        await camera.start();
         cameraRef.current = camera;
       } catch (e) {
         console.error("Camera init error:", e);
+        setCamStatus('error');
       }
     }
+  };
 
+  useEffect(() => {
+    initCamera();
     return () => {
       if (cameraRef.current) {
         try { cameraRef.current.stop(); } catch(e) {}
@@ -119,6 +137,14 @@ export default function CalibrationView({ onComplete }: CalibrationViewProps) {
         
         <div className="flex items-center gap-4">
            <button 
+             onClick={initCamera}
+             className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-xl border border-primary/20 text-primary transition-all flex items-center gap-2"
+             title="Thử lại Camera"
+           >
+              <RefreshCcw className={cn("w-5 h-5", camStatus === 'loading' && "animate-spin")} />
+              <span className="text-[10px] font-bold uppercase hidden md:inline">Thử lại Cam</span>
+           </button>
+           <button 
              onClick={() => setIsFullScreen(!isFullScreen)}
              className="p-2.5 bg-white hover:bg-primary/5 rounded-xl border border-outline-variant shadow-sm transition-all"
            >
@@ -138,12 +164,30 @@ export default function CalibrationView({ onComplete }: CalibrationViewProps) {
           <div className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl border border-outline-variant/20 bg-black flex-1">
             <video ref={videoRef} className="hidden" playsInline autoPlay />
             <canvas ref={canvasRef} width={1280} height={720} className="w-full h-full object-cover opacity-80" />
+            
+            {camStatus !== 'active' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-30">
+                {camStatus === 'loading' ? (
+                  <>
+                    <RefreshCcw className="w-12 h-12 text-primary animate-spin mb-4" />
+                    <p className="text-white font-bold animate-pulse">Đang kết nối Camera...</p>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-12 h-12 text-red-500 mb-4" />
+                    <p className="text-white font-bold mb-2">Không thể khởi động Camera</p>
+                    <button onClick={initCamera} className="px-6 py-2 bg-primary text-white rounded-lg font-bold">Thử lại ngay</button>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="absolute inset-0 bg-black/10 scanline z-10 pointer-events-none"></div>
             
             <div className="absolute top-4 left-4 z-20">
               <div className="hud-glass px-3 py-1.5 rounded-full flex items-center gap-3 border border-primary/30">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                <span className="text-[9px] text-white font-bold uppercase tracking-widest">LIVE</span>
+                <div className={cn("w-2 h-2 rounded-full", camStatus === 'active' ? "bg-primary animate-pulse" : "bg-red-500")}></div>
+                <span className="text-[9px] text-white font-bold uppercase tracking-widest">{camStatus === 'active' ? 'LIVE' : 'OFFLINE'}</span>
               </div>
             </div>
 
@@ -161,17 +205,23 @@ export default function CalibrationView({ onComplete }: CalibrationViewProps) {
             <div className="flex items-center gap-8">
               <div className="flex flex-col">
                 <span className="text-[9px] text-on-surface-variant font-black uppercase tracking-[0.3em] mb-1">Cảm biến</span>
-                <span className="text-sm font-black text-primary font-display">60 FPS // OK</span>
+                <span className={cn("text-sm font-black font-display", camStatus === 'active' ? "text-primary" : "text-red-500")}>
+                  {camStatus === 'active' ? '60 FPS // OK' : 'NO SIGNAL'}
+                </span>
               </div>
               <div className="h-10 w-px bg-outline-variant/30"></div>
               <div className="flex flex-col">
                 <span className="text-[9px] text-on-surface-variant font-black uppercase tracking-[0.3em] mb-1">Tracking</span>
-                <span className="text-sm font-black text-on-surface font-display">STABLE</span>
+                <span className="text-sm font-black text-on-surface font-display">{camStatus === 'active' ? 'STABLE' : 'WAITING'}</span>
               </div>
             </div>
             <button 
               onClick={onComplete}
-              className="bg-primary text-white px-10 py-4 rounded-xl font-black text-xs shadow-lg shadow-primary/20 hover:scale-[1.05] transition-all flex items-center gap-4"
+              disabled={camStatus !== 'active'}
+              className={cn(
+                "px-10 py-4 rounded-xl font-black text-xs shadow-lg transition-all flex items-center gap-4",
+                camStatus === 'active' ? "bg-primary text-white shadow-primary/20 hover:scale-[1.05]" : "bg-surface-container text-on-surface-variant/30 cursor-not-allowed"
+              )}
             >
               VÀO LUYỆN TẬP
               <CheckCircle2 className="w-4 h-4" />
